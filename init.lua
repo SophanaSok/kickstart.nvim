@@ -658,7 +658,7 @@ require('lazy').setup({
         -- You can add other tools here that you want Mason to install
       })
 
-      require('mason-tool-installer').setup { ensure_installed = ensure_installed }
+      require('mason-tool-installer').setup { ensure_installed = {"lua-language-server"}}
 
       for name, server in pairs(servers) do
         vim.lsp.config(name, server)
