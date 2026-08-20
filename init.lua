@@ -1013,7 +1013,7 @@ do
     'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc',
     -- languages actually used in ~/Projects
     'rust', 'ron', 'toml',
-    'typescript', 'tsx', 'javascript', 'jsdoc', 'css', 'json', 'jsonc', 'yaml',
+    'typescript', 'tsx', 'javascript', 'jsdoc', 'css', 'json', 'yaml',
     'python',
     'cpp', 'cmake', 'make',
     'go', 'gomod', 'gosum',
