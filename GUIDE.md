@@ -331,6 +331,7 @@ Nearly always four edits in `init.lua`, all at commented extension points:
 | A tool is missing | `:Mason` |
 | A plugin is missing/broken | `:lua vim.pack.update(nil, { offline = true })` |
 | Formatting didn't fire | `:ConformInfo` |
+| `<leader>ac` does nothing | Are you **inside the Claude split**? It's a terminal in insert mode — keys go to Claude. `<C-\><C-n>` first. Or you paused >300 ms between keys (`timeoutlen`); type `:ClaudeCode` to be sure. Blank split for a few seconds = the mise shim resolving, be patient. |
 | Claude won't connect | `:ClaudeCodeStatus`; confirm `~/.local/bin/claude` runs |
 | GDScript has no LSP | **Is Godot open?** It hosts the server. |
 | Colors didn't follow the desktop theme | `:OmarchyThemeReload` |
