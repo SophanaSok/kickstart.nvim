@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(/usr/bin/jq -r '.tool_input.file_path // empty'); case \"$f\" in *.lua) /home/ssok/.local/share/nvim/mason/bin/stylua \"$f\" ;; esac; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

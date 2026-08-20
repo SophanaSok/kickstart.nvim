@@ -390,10 +390,9 @@ do
     },
   }
 
-  -- Load the colorscheme here.
-  -- Like many other themes, this one has different styles, and you could load
-  -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-  vim.cmd.colorscheme 'tokyonight-night'
+  -- The colorscheme is applied by lua/custom/plugins/omarchy.lua, which follows
+  -- the desktop theme and falls back to tokyonight on its own. Loading it here
+  -- too meant two colorschemes per startup and a visible flash.
 
   -- Highlight todo, notes, etc in comments
   vim.pack.add { gh 'folke/todo-comments.nvim' }
@@ -750,8 +749,6 @@ do
     bashls = {},
     taplo = {},
 
-    stylua = {}, -- Used to format Lua code
-
     -- Special Lua Config, as recommended by neovim help docs
     lua_ls = {
       on_init = function(client)
@@ -828,6 +825,7 @@ do
 
   vim.list_extend(ensure_installed, {
     -- You can add other tools here that you want Mason to install
+    'stylua', -- lua formatter (conform runs it; it is NOT an LSP server)
     'prettier', -- js/ts/json/yaml/css/html/markdown formatter
     'markdownlint', -- markdown linter (used by kickstart.plugins.lint)
     'shfmt', -- shell formatter
@@ -835,7 +833,11 @@ do
     'debugpy', -- DAP adapter for python
   })
 
-  require('mason-tool-installer').setup { ensure_installed = ensure_installed }
+  require('mason-tool-installer').setup {
+    ensure_installed = ensure_installed,
+    -- Don't touch the registry on every launch; :MasonToolsInstall when adding a tool.
+    run_on_start = false,
+  }
 
   for name, server in pairs(servers) do
     vim.lsp.config(name, server)
@@ -851,7 +853,7 @@ do
   -- [[ Formatting ]]
   vim.pack.add { gh 'stevearc/conform.nvim' }
   require('conform').setup {
-    notify_on_error = false,
+    notify_on_error = true, -- a silent formatter failure hid a dead `node` shim for weeks
     format_on_save = function(bufnr)
       -- You can specify filetypes to autoformat on save here:
       local enabled_filetypes = {
@@ -872,6 +874,8 @@ do
         javascriptreact = true,
         typescript = true,
         typescriptreact = true,
+        c = true,
+        cpp = true,
       }
       if enabled_filetypes[vim.bo[bufnr].filetype] then
         return { timeout_ms = 500 }
@@ -1022,10 +1026,15 @@ do
     'cpp', 'cmake', 'make',
     'go', 'gomod', 'gosum',
     'gdscript', 'godot_resource', 'gdshader',
-    'git_config', 'git_rebase', 'gitcommit', 'gitignore', 'diff',
+    'git_config', 'git_rebase', 'gitcommit', 'gitignore',
     'dockerfile', 'sql', 'regex',
   }
-  require('nvim-treesitter').install(parsers)
+  -- Installed once the UI is up rather than during startup; the FileType hook
+  -- below auto-installs anything missing when a buffer actually needs it.
+  vim.api.nvim_create_autocmd('VimEnter', {
+    once = true,
+    callback = function() require('nvim-treesitter').install(parsers) end,
+  })
 
   ---@param buf integer
   ---@param language string

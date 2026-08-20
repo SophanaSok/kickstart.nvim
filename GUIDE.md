@@ -284,8 +284,24 @@ Check it with `:lua print(vim.g.clipboard and vim.g.clipboard.name)` —
 ```
 Then commit the lockfile: `git commit -am "chore: update plugins"`.
 
+> The `retro-82.nvim` entry (or whatever your desktop theme's colorscheme is)
+> is installed by `custom/plugins/omarchy.lua` from the Omarchy theme spec, not
+> declared in this repo. Expect that one lockfile line to churn when you change
+> desktop theme. That's fine; commit it.
+
+### Roll back a bad plugin update
+The tracked lockfile is the undo button:
+```
+git log --oneline -- nvim-pack-lock.json      " find the last good commit
+git checkout <good-sha> -- nvim-pack-lock.json
+:lua vim.pack.update()                        " now re-pins to those revs; :write
+```
+Then commit the restored lockfile so the rollback is itself recorded.
+
 ### Update tools
 `:Mason` — `U` updates all. System tools come from pacman.
+Mason's auto-installer is **off at startup** (it used to hit the registry on
+every launch). After adding a tool to `ensure_installed`, run `:MasonToolsInstall`.
 
 ### Pull upstream kickstart
 ```

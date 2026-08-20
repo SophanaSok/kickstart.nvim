@@ -34,7 +34,7 @@ vim.pack.add { gh 'coder/claudecode.nvim' }
 require('claudecode').setup {
   -- `claude` here is a mise shim; pin the path so nvim doesn't depend on
   -- whatever PATH the parent shell happened to export.
-  terminal_cmd = vim.fn.expand '~/.local/bin/claude',
+  terminal_cmd = vim.fn.executable(vim.fn.expand '~/.local/bin/claude') == 1 and vim.fn.expand '~/.local/bin/claude' or 'claude',
   terminal = {
     -- 'native' uses a plain :terminal split. The upstream README's default
     -- pulls in folke/snacks.nvim purely for its terminal, which kickstart
@@ -147,6 +147,9 @@ require('codecompanion').setup {
 
       -- Ollama, for `llm-switch ollama` mode. qwen3.5:9b is the vision-capable
       -- model, which is the reason to switch the card over to it at all.
+      -- The daemon is disabled at boot and only llm-switch starts it, so using
+      -- this adapter without `llm-switch ollama` first fails fast with
+      -- connection-refused - by design, instead of loading 6.6GB onto a full card.
       ollama = function()
         return require('codecompanion.adapters').extend('ollama', {
           env = { url = 'http://127.0.0.1:11434' },
@@ -173,7 +176,6 @@ vim.keymap.set({ 'n', 'v' }, '<leader>ca', '<cmd>CodeCompanionActions<cr>', { de
 vim.keymap.set({ 'n', 'v' }, '<leader>ci', ':CodeCompanion ', { desc = 'CodeCompanion: [i]nline prompt' })
 vim.keymap.set('v', 'ga', '<cmd>CodeCompanionChat Add<cr>', { desc = 'CodeCompanion: Add selection to chat' })
 -- stylua: ignore end
-vim.cmd [[cab cc CodeCompanion]]
 
 -- Label the prefixes so which-key can explain them.
 pcall(

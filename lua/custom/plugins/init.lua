@@ -7,10 +7,19 @@
 -- A plugin must be added by `vim.pack.add` before anything `require`s it, so
 -- the order of these calls is meaningful.
 
-require 'custom.plugins.clipboard' -- omarchy osc52/wayland clipboard bridge
-require 'custom.plugins.omarchy' -- colorscheme, synced from the desktop theme
-require 'custom.plugins.lint' -- extend kickstart's nvim-lint setup
-require 'custom.plugins.ai' -- claude code + codecompanion
-require 'custom.plugins.dap' -- debug adapters kickstart doesn't ship
-require 'custom.plugins.git' -- diffview
-require 'custom.plugins.godot' -- godot editor-server handshake
+--
+-- Each module is loaded under pcall so one failure (an uninstalled plugin on a
+-- fresh machine, a broken update) costs that module and a notification - not
+-- every module after it plus a stack trace in place of an editor.
+for _, mod in ipairs {
+  'clipboard', -- omarchy osc52/wayland clipboard bridge
+  'omarchy', -- colorscheme, synced from the desktop theme
+  'lint', -- extend kickstart's nvim-lint setup
+  'ai', -- claude code + codecompanion
+  'dap', -- debug adapters kickstart doesn't ship
+  'git', -- diffview
+  'godot', -- godot editor-server handshake
+} do
+  local ok, err = pcall(require, 'custom.plugins.' .. mod)
+  if not ok then vim.schedule(function() vim.notify(('custom.plugins.%s failed to load:\n%s'):format(mod, err), vim.log.levels.ERROR) end) end
+end
