@@ -7,6 +7,7 @@
 -- A plugin must be added by `vim.pack.add` before anything `require`s it, so
 -- the order of these calls is meaningful.
 
+require 'custom.plugins.clipboard' -- omarchy osc52/wayland clipboard bridge
 require 'custom.plugins.omarchy' -- colorscheme, synced from the desktop theme
 require 'custom.plugins.lint' -- extend kickstart's nvim-lint setup
 require 'custom.plugins.ai' -- claude code + codecompanion

@@ -211,6 +211,23 @@ lints it.
 
 ---
 
+## 4a. Clipboard in tmux and over SSH
+
+Yanking to `+` reaches your system clipboard even from tmux or a remote host.
+Omarchy's provider is loaded straight from its package
+(`/usr/share/omarchy-nvim/`), so pacman keeps it current and nothing is vendored
+into this repo.
+
+It **only engages inside tmux, SSH, or herdr** — on a plain local session
+Neovim's normal clipboard is untouched. Copies go out as OSC 52 (tmux turns
+these into a buffer and rebroadcasts to every attached client); pastes prefer
+the local Wayland clipboard, so text copied in other apps stays pasteable.
+
+Check it with `:lua print(vim.g.clipboard and vim.g.clipboard.name)` —
+`OmarchyRemoteClipboard` inside tmux, `nil` outside it. Both are correct.
+
+---
+
 ## 5. Maintenance
 
 ### Update plugins
@@ -254,6 +271,7 @@ Nearly always four edits in `init.lua`, all at commented extension points:
 | GDScript has no LSP | **Is Godot open?** It hosts the server. |
 | Colors didn't follow the desktop theme | `:OmarchyThemeReload` |
 | Python resolving to conda | Make a project `.venv`; check `:LspInfo` root dir |
+| Yanks don't reach the clipboard | `:lua print(vim.g.clipboard.name)` — expect `OmarchyRemoteClipboard` in tmux/SSH |
 | **Everything is broken** | `NVIM_APPNAME=nvim.lazyvim.bak nvim` — your old LazyVim config, untouched |
 
 ### Undercurls look like plain underlines
