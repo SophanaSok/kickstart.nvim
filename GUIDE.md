@@ -128,7 +128,7 @@ Two tools, deliberately separate:
 | `<leader>aa` / `<leader>ad` | **a**ccept / **d**eny the proposed diff |
 | `<leader>ar` / `<leader>aC` | **r**esume / **C**ontinue a past session |
 | `<leader>am` | select **m**odel |
-| **`<leader>cc`** | **CodeCompanion** — toggle chat (local Ollama) |
+| **`<leader>cc`** | **CodeCompanion** — toggle chat (local model) |
 | `<leader>ca` | action palette |
 | `<leader>ci` | inline prompt |
 | `ga` | *(visual)* add selection to the chat |
@@ -156,12 +156,60 @@ edits → review each diff → `<leader>aa` / `<leader>ad`.
 
 **Check the connection:** `:ClaudeCodeStatus`.
 
+**Claude can also read the editor's live state.** Because the CLI runs in an
+nvim terminal split, it inherits `$NVIM`, the path to nvim's RPC socket, and the
+`neovim` skill in `~/.claude/skills/` teaches it to use that:
+
+```
+nvim --server "$NVIM" --remote-expr 'luaeval("vim.json.encode(vim.diagnostic.get(0))")'
+```
+
+So it can check real diagnostics, which buffers are open, whether a plugin
+actually loaded, or `:messages` — instead of guessing. It's read-only by
+design; edits still come back as diffs you accept. This uses no Claude Code
+protocol, so it can't break when either tool updates.
+
 ### When to use CodeCompanion instead
 
-CodeCompanion (`<leader>cc`) talks to **local Ollama** — `qwen3-coder-agent` at
-`127.0.0.1:11434`, with context raised from Ollama's 4k default to 64k. Reach
-for it when you want a fast local answer, are offline, or don't want the work
-leaving the machine. Claude for agentic multi-file work; Ollama for questions.
+CodeCompanion (`<leader>cc`) talks to **whatever `llm-switch` is serving**.
+Two adapters, matching its two LLM modes:
+
+| Adapter | Endpoint | When |
+|---|---|---|
+| `llamacpp` *(default)* | llama-server, `127.0.0.1:8080` | normal — this is llm-switch's default owner of the card |
+| `ollama` | Ollama, `127.0.0.1:11434` | after `llm-switch ollama`, when you need the vision-capable model |
+
+Switch per-chat with tab-completion:
+
+```
+:CodeCompanionChat adapter=ollama
+:CodeCompanionChat adapter=llamacpp model=<tab>
+```
+
+**Neither adapter names a model.** Both discover it by querying the server
+(`/v1/models`, `/api/tags`) and caching the result, so nvim follows whatever is
+actually loaded. This is deliberate: the config previously hardcoded a
+`qwen3-coder-agent` that had long since stopped existing, and `<leader>cc` was
+silently dead. There is now no model name in the config to rot.
+
+The card holds exactly one model at a time — if `<leader>cc` errors, check
+`llm-switch status` before suspecting nvim.
+
+Reach for it when you want a fast local answer, are offline, or don't want the
+work leaving the machine. Claude for agentic multi-file work; the local model
+for questions.
+
+### Why there's no AI autocomplete
+
+Deliberate. Ghost-text completion needs its own small model resident *alongside*
+whatever owns the card, and the card is already committed: Qwen3.6-35B-A3B runs
+with `--n-cpu-moe 20`, i.e. tuned to just barely fit in 16GB. Adding a FIM
+server would make a fourth contender on a GPU `llm-switch` exists to arbitrate
+between three — and the 35B has no FIM training, so it can't do the job itself.
+
+If it's ever wanted: a `qwen2.5-coder-1.5b` FIM server on `:8012` plus
+`minuet-ai.nvim` feeding blink.cmp, and a fourth `llm-switch` mode so it can't
+race llama-server for VRAM.
 
 ---
 

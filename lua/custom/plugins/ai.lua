@@ -1,4 +1,4 @@
--- AI: Claude Code for agentic work, CodeCompanion for chat against local Ollama.
+-- AI: Claude Code for agentic work, CodeCompanion for chat against the local card.
 --
 -- Keymap split:
 --
@@ -23,6 +23,12 @@ local function gh(repo) return 'https://github.com/' .. repo end
 -- loopback ws:// server on a port in 10000-65535, advertised through a lock
 -- file at ~/.claude/ide/<port>.lock. It drives the `claude` CLI you are already
 -- logged in to, so there's no separate token to manage.
+--
+-- Note the terminal stays a *native* nvim split rather than an external tmux
+-- pane. The lock file is per-nvim-instance, so an external Claude survives an
+-- nvim restart as a process but is orphaned from the editor until you reconnect
+-- with /ide - persistence that is only half real, paid for with nvim motions
+-- over the transcript. Not worth it.
 vim.pack.add { gh 'coder/claudecode.nvim' }
 
 require('claudecode').setup {
@@ -58,16 +64,36 @@ vim.keymap.set('n', '<leader>ad', '<cmd>ClaudeCodeDiffDeny<cr>', { desc = 'Claud
 -- stylua: ignore end
 
 -- In a file explorer, <leader>as adds the file under the cursor instead.
+-- Upstream's pattern also lists NvimTree, oil, minifiles and snacks_picker_list;
+-- none of those are installed here, so the list is trimmed to what this config
+-- actually loads.
 vim.api.nvim_create_autocmd('FileType', {
   desc = 'Claude Code: add file from the tree with <leader>as',
   group = vim.api.nvim_create_augroup('claudecode-tree', { clear = true }),
-  pattern = { 'NvimTree', 'neo-tree', 'oil', 'minifiles', 'netrw' },
+  pattern = { 'neo-tree', 'netrw' },
   callback = function(ev) vim.keymap.set('n', '<leader>as', '<cmd>ClaudeCodeTreeAdd<cr>', { buffer = ev.buf, desc = 'Claude: Add file' }) end,
 })
 
 -- ---------------------------------------------------------------------------
--- CodeCompanion (chat + inline, pointed at local Ollama)
+-- CodeCompanion (chat + inline, pointed at the local card)
 -- ---------------------------------------------------------------------------
+-- Two adapters, mirroring the two LLM modes of ~/models/llm-switch, which
+-- arbitrates the 16GB card between llama-server, Ollama and ComfyUI - only one
+-- may own it at a time. `llamacpp` is the default because llama-server is
+-- llm-switch's default owner.
+--
+-- Neither adapter hardcodes a model name. The `openai_compatible` adapter
+-- resolves schema.model.default by querying /v1/models and caching the result,
+-- so nvim follows whatever the server is actually serving. A hardcoded name is
+-- exactly what rotted here before: this config asked Ollama for a
+-- 'qwen3-coder-agent' that no longer existed, on the service llm-switch parks
+-- while llama-server holds the card.
+--
+-- The adapter functions are called lazily on first use, not at setup(), so
+-- startup costs nothing when the card is in comfy mode and :8080 is down.
+--
+-- Completion inside the chat buffer, the action palette and the vim-help picker
+-- all auto-detect (blink.cmp and telescope are both found) - nothing to set.
 vim.pack.add {
   gh 'nvim-lua/plenary.nvim', -- already added by kickstart for telescope; harmless
   gh 'olimorris/codecompanion.nvim',
@@ -76,14 +102,58 @@ vim.pack.add {
 require('codecompanion').setup {
   adapters = {
     http = {
+      -- llama-server, the primary: Qwen3.6-35B-A3B at 32k ctx on :8080.
+      llamacpp = function()
+        return require('codecompanion.adapters').extend('openai_compatible', {
+          -- Cosmetic: the chat buffer would otherwise say "OpenAI Compatible",
+          -- which says nothing about which of the two backends answered.
+          formatted_name = 'llama.cpp',
+          env = {
+            url = 'http://127.0.0.1:8080',
+            chat_url = '/v1/chat/completions',
+            models_endpoint = '/v1/models',
+            -- llama-server runs without --api-key, so the Authorization header
+            -- is ignored - but the var still has to resolve. TERM always does.
+            api_key = 'TERM',
+          },
+          schema = {
+            -- No `model` default: let the adapter discover it from /v1/models.
+            -- No `num_ctx` either; it isn't an openai_compatible knob, and the
+            -- server's --ctx-size is authoritative.
+            --
+            -- `mapping` is not optional here. Unlike the openai adapter,
+            -- openai_compatible declares only `model` in its schema, so a bare
+            -- `temperature = { default = 0.2 }` resolves as a setting and is
+            -- then silently dropped on the way into the request body.
+            temperature = { mapping = 'parameters', type = 'number', default = 0.2 },
+          },
+          handlers = {
+            -- Qwen3.6 is a thinking model: it returns its chain of thought in a
+            -- separate `reasoning_content` field. openai_compatible captures
+            -- that into `extra` but has no handler to promote it, so the whole
+            -- thinking block is silently dropped and chunks that carry only
+            -- reasoning arrive as empty content. deepseek solves this upstream
+            -- and kimi reuses its implementation verbatim; do the same.
+            --
+            -- It has to be registered under the OLD flat name. Adding
+            -- `handlers.response` would make uses_new_handlers() true for an
+            -- adapter that is otherwise old-format, and every other handler
+            -- lookup - setup, chat_output, form_messages - would then miss and
+            -- return nil. See adapters/http/init.lua:8-33.
+            parse_message_meta = function(self, data) return require('codecompanion.adapters.http.deepseek').handlers.response.parse_meta(self, data) end,
+          },
+        })
+      end,
+
+      -- Ollama, for `llm-switch ollama` mode. qwen3.5:9b is the vision-capable
+      -- model, which is the reason to switch the card over to it at all.
       ollama = function()
         return require('codecompanion.adapters').extend('ollama', {
           env = { url = 'http://127.0.0.1:11434' },
           schema = {
-            model = { default = 'qwen3-coder-agent' },
             -- Ollama defaults num_ctx to 4k, which is far too small for
-            -- anything agentic. The 5060 Ti has room for 64k.
-            num_ctx = { default = 65536 },
+            -- anything agentic. 32k is what the 9B holds with room to spare.
+            num_ctx = { default = 32768 },
             temperature = { default = 0.2 },
           },
         })
@@ -91,9 +161,9 @@ require('codecompanion').setup {
     },
   },
   interactions = {
-    chat = { adapter = 'ollama' },
-    inline = { adapter = 'ollama' },
-    cmd = { adapter = 'ollama' },
+    chat = { adapter = 'llamacpp' },
+    inline = { adapter = 'llamacpp' },
+    cmd = { adapter = 'llamacpp' },
   },
 }
 
@@ -110,7 +180,7 @@ pcall(
   function()
     require('which-key').add {
       { '<leader>a', group = 'AI / Claude Code' },
-      { '<leader>c', group = '[C]odeCompanion (local LLM)' },
+      { '<leader>c', group = '[C]odeCompanion (llama-server)' },
     }
   end
 )
