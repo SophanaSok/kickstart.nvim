@@ -12,3 +12,4 @@ require 'custom.plugins.lint' -- extend kickstart's nvim-lint setup
 require 'custom.plugins.ai' -- claude code + codecompanion
 require 'custom.plugins.dap' -- debug adapters kickstart doesn't ship
 require 'custom.plugins.git' -- diffview
+require 'custom.plugins.godot' -- godot editor-server handshake
