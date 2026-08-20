@@ -1,12 +1,17 @@
 -- AI: Claude Code for agentic work, CodeCompanion for chat against local Ollama.
 --
--- Keymap split (both plugins keep their *documented* defaults - this is why
--- init.lua moves maplocalleader off <space>):
+-- Keymap split:
 --
 --   <leader>a...   Claude Code   agentic edits, native diffs
---   <LocalLeader>a CodeCompanion chat toggle  (localleader is '\')
---   <C-a>          CodeCompanion action palette
+--   <leader>c...   CodeCompanion chat, actions, inline
 --   ga  (visual)   CodeCompanion add selection to chat
+--
+-- claudecode.nvim ships real defaults on <leader>a, so those are kept verbatim.
+-- CodeCompanion ships no keymaps at all - its docs only *suggest* <LocalLeader>a
+-- and <C-a> - so we pick keys that don't cost anything here:
+--   * <LocalLeader>a would be '\a', and kickstart's neo-tree already binds '\',
+--     which would put a timeoutlen delay on every tree toggle.
+--   * <C-a> is vim's increment-number, which is worth more than a palette.
 
 local function gh(repo) return 'https://github.com/' .. repo end
 
@@ -92,16 +97,20 @@ require('codecompanion').setup {
   },
 }
 
--- CodeCompanion's documented keymaps, verbatim.
-vim.keymap.set({ 'n', 'v' }, '<C-a>', '<cmd>CodeCompanionActions<cr>', { desc = 'CodeCompanion: Actions' })
-vim.keymap.set({ 'n', 'v' }, '<LocalLeader>a', '<cmd>CodeCompanionChat Toggle<cr>', { desc = 'CodeCompanion: Toggle chat' })
+-- stylua: ignore start
+vim.keymap.set({ 'n', 'v' }, '<leader>cc', '<cmd>CodeCompanionChat Toggle<cr>', { desc = 'CodeCompanion: Toggle [c]hat' })
+vim.keymap.set({ 'n', 'v' }, '<leader>ca', '<cmd>CodeCompanionActions<cr>', { desc = 'CodeCompanion: [a]ction palette' })
+vim.keymap.set({ 'n', 'v' }, '<leader>ci', ':CodeCompanion ', { desc = 'CodeCompanion: [i]nline prompt' })
 vim.keymap.set('v', 'ga', '<cmd>CodeCompanionChat Add<cr>', { desc = 'CodeCompanion: Add selection to chat' })
+-- stylua: ignore end
 vim.cmd [[cab cc CodeCompanion]]
 
 -- Label the prefixes so which-key can explain them.
-pcall(function()
-  require('which-key').add {
-    { '<leader>a', group = 'AI / Claude Code' },
-    { '<LocalLeader>a', desc = 'CodeCompanion chat' },
-  }
-end)
+pcall(
+  function()
+    require('which-key').add {
+      { '<leader>a', group = 'AI / Claude Code' },
+      { '<leader>c', group = '[C]odeCompanion (local LLM)' },
+    }
+  end
+)

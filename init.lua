@@ -96,9 +96,7 @@ do
   -- See `:help mapleader`
   --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
   vim.g.mapleader = ' '
-  -- NOTE: localleader is '\\' rather than <space> so that plugins documenting
-  -- <LocalLeader> maps (codecompanion) don't collide with <leader> maps (claudecode).
-  vim.g.maplocalleader = '\\'
+  vim.g.maplocalleader = ' '
 
   -- Set to true if you have a Nerd Font installed and selected in the terminal
   vim.g.have_nerd_font = true
