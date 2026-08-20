@@ -809,8 +809,11 @@ do
   -- You can press `g?` for help in this menu.
   -- Servers that are NOT installed by mason on this machine, and so must be
   -- filtered out of the install list even though they appear in `servers`:
-  --  * rust_analyzer / clangd / gopls / bashls -> pacman
-  --  * gdscript -> provided by the running Godot editor itself, no package
+  --  * rust_analyzer -> pacman `rust-analyzer` (Arch's `rust` package omits it)
+  --  * clangd        -> pacman `clang`
+  --  * gopls         -> pacman `gopls` (a separate package from `go`)
+  --  * gdscript      -> hosted by the running Godot editor; there is no package
+  -- Everything else in `servers` above is installed by mason.
   local not_from_mason = {
     rust_analyzer = true,
     clangd = true,
