@@ -96,10 +96,12 @@ do
   -- See `:help mapleader`
   --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
   vim.g.mapleader = ' '
-  vim.g.maplocalleader = ' '
+  -- NOTE: localleader is '\\' rather than <space> so that plugins documenting
+  -- <LocalLeader> maps (codecompanion) don't collide with <leader> maps (claudecode).
+  vim.g.maplocalleader = '\\'
 
   -- Set to true if you have a Nerd Font installed and selected in the terminal
-  vim.g.have_nerd_font = false
+  vim.g.have_nerd_font = true
 
   -- [[ Setting options ]]
   --  See `:help vim.o`
@@ -692,16 +694,63 @@ do
   --  See `:help lsp-config` for information about keys and how to configure
   ---@type table<string, vim.lsp.Config>
   local servers = {
-    -- clangd = {},
-    -- gopls = {},
-    -- pyright = {},
-    -- rust_analyzer = {},
-    --
-    -- Some languages (like typescript) have entire language plugins that can be useful:
-    --    https://github.com/pmizio/typescript-tools.nvim
-    --
-    -- But for many setups, the LSP (`ts_ls`) will work just fine
-    -- ts_ls = {},
+    -- Systems languages -------------------------------------------------
+    -- rust-analyzer, clangd and gopls come from pacman, not mason; see the
+    -- `ensure_installed` list below for the ones mason does own.
+    rust_analyzer = {
+      settings = {
+        ['rust-analyzer'] = {
+          -- Run clippy rather than plain `cargo check` on save, so lints show
+          -- up as diagnostics instead of only at build time.
+          checkOnSave = true,
+          check = { command = 'clippy', extraArgs = { '--all-targets' } },
+          cargo = { allFeatures = true },
+          inlayHints = { closureReturnTypeHints = { enable = 'with_block' } },
+        },
+      },
+    },
+    clangd = {
+      cmd = {
+        'clangd',
+        '--background-index',
+        '--clang-tidy',
+        '--header-insertion=never',
+        '--completion-style=detailed',
+      },
+    },
+    gopls = {},
+
+    -- Web ---------------------------------------------------------------
+    vtsls = {},
+    tailwindcss = {},
+    jsonls = {},
+    yamlls = {},
+
+    -- Python ------------------------------------------------------------
+    -- NOTE: `python3` on this machine resolves to anaconda. basedpyright is
+    -- pointed at the project-local venv so it doesn't index the conda base env.
+    basedpyright = {
+      settings = {
+        basedpyright = {
+          analysis = {
+            typeCheckingMode = 'standard',
+            diagnosticMode = 'openFilesOnly',
+            autoSearchPaths = true,
+            useLibraryCodeForTypes = true,
+          },
+        },
+      },
+    },
+    ruff = {},
+
+    -- Godot -------------------------------------------------------------
+    -- nvim-lspconfig's built-in gdscript config connects over TCP to the
+    -- *running* Godot editor (127.0.0.1:6005 by default). Godot must be open.
+    gdscript = {},
+
+    -- Misc --------------------------------------------------------------
+    bashls = {},
+    taplo = {},
 
     stylua = {}, -- Used to format Lua code
 
@@ -760,9 +809,29 @@ do
   --    :Mason
   --
   -- You can press `g?` for help in this menu.
-  local ensure_installed = vim.tbl_keys(servers or {})
+  -- Servers that are NOT installed by mason on this machine, and so must be
+  -- filtered out of the install list even though they appear in `servers`:
+  --  * rust_analyzer / clangd / gopls / bashls -> pacman
+  --  * gdscript -> provided by the running Godot editor itself, no package
+  local not_from_mason = {
+    rust_analyzer = true,
+    clangd = true,
+    gopls = true,
+    gdscript = true,
+  }
+
+  local ensure_installed = {}
+  for name, _ in pairs(servers or {}) do
+    if not not_from_mason[name] then table.insert(ensure_installed, name) end
+  end
+
   vim.list_extend(ensure_installed, {
     -- You can add other tools here that you want Mason to install
+    'prettier', -- js/ts/json/yaml/css/html/markdown formatter
+    'markdownlint', -- markdown linter (used by kickstart.plugins.lint)
+    'shfmt', -- shell formatter
+    'codelldb', -- DAP adapter for rust and c/c++
+    'debugpy', -- DAP adapter for python
   })
 
   require('mason-tool-installer').setup { ensure_installed = ensure_installed }
@@ -785,8 +854,23 @@ do
     format_on_save = function(bufnr)
       -- You can specify filetypes to autoformat on save here:
       local enabled_filetypes = {
-        -- lua = true,
-        -- python = true,
+        lua = true,
+        rust = true,
+        go = true,
+        python = true,
+        gdscript = true,
+        sh = true,
+        bash = true,
+        json = true,
+        jsonc = true,
+        yaml = true,
+        toml = true,
+        css = true,
+        html = true,
+        javascript = true,
+        javascriptreact = true,
+        typescript = true,
+        typescriptreact = true,
       }
       if enabled_filetypes[vim.bo[bufnr].filetype] then
         return { timeout_ms = 500 }
@@ -799,12 +883,29 @@ do
     },
     -- You can also specify external formatters in here.
     formatters_by_ft = {
-      -- rust = { 'rustfmt' },
-      -- Conform can also run multiple formatters sequentially
-      -- python = { "isort", "black" },
-      --
-      -- You can use 'stop_after_first' to run the first available formatter from the list
-      -- javascript = { "prettierd", "prettier", stop_after_first = true },
+      lua = { 'stylua' },
+      rust = { 'rustfmt' },
+      go = { 'gofmt' },
+      c = { 'clang-format' },
+      cpp = { 'clang-format' },
+      gdscript = { 'gdformat' },
+      sh = { 'shfmt' },
+      bash = { 'shfmt' },
+      -- ruff_format replaces the older isort+black pair, and is what the
+      -- `ruff` language server above already uses.
+      python = { 'ruff_organize_imports', 'ruff_format' },
+      -- `stop_after_first` prefers a project-local prettier over the mason one.
+      javascript = { 'prettier', stop_after_first = true },
+      javascriptreact = { 'prettier', stop_after_first = true },
+      typescript = { 'prettier', stop_after_first = true },
+      typescriptreact = { 'prettier', stop_after_first = true },
+      css = { 'prettier', stop_after_first = true },
+      html = { 'prettier', stop_after_first = true },
+      json = { 'prettier', stop_after_first = true },
+      jsonc = { 'prettier', stop_after_first = true },
+      yaml = { 'prettier', stop_after_first = true },
+      markdown = { 'prettier', stop_after_first = true },
+      toml = { 'taplo' },
     },
   }
 
@@ -907,7 +1008,19 @@ do
   vim.pack.add { { src = gh 'nvim-treesitter/nvim-treesitter', version = 'main' } }
 
   -- Ensure basic parsers are installed
-  local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+  -- stylua: ignore
+  local parsers = {
+    'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc',
+    -- languages actually used in ~/Projects
+    'rust', 'ron', 'toml',
+    'typescript', 'tsx', 'javascript', 'jsdoc', 'css', 'json', 'jsonc', 'yaml',
+    'python',
+    'cpp', 'cmake', 'make',
+    'go', 'gomod', 'gosum',
+    'gdscript', 'godot_resource', 'gdshader',
+    'git_config', 'git_rebase', 'gitcommit', 'gitignore', 'diff',
+    'dockerfile', 'sql', 'regex',
+  }
   require('nvim-treesitter').install(parsers)
 
   ---@param buf integer
@@ -969,17 +1082,17 @@ do
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug'
-  -- require 'kickstart.plugins.indent_line'
-  -- require 'kickstart.plugins.lint'
-  -- require 'kickstart.plugins.autopairs'
-  -- require 'kickstart.plugins.neo-tree'
-  -- require 'kickstart.plugins.gitsigns' -- adds gitsigns recommended keymaps
+  require 'kickstart.plugins.debug'
+  require 'kickstart.plugins.indent_line'
+  require 'kickstart.plugins.lint'
+  require 'kickstart.plugins.autopairs'
+  require 'kickstart.plugins.neo-tree'
+  require 'kickstart.plugins.gitsigns' -- adds gitsigns recommended keymaps
 
   -- NOTE: You can add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- require 'custom.plugins'
+  require 'custom.plugins'
 end
 
 -- The line beneath this is called `modeline`. See `:help modeline`
