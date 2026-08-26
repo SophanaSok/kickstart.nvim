@@ -831,6 +831,7 @@ do
     'shfmt', -- shell formatter
     'codelldb', -- DAP adapter for rust and c/c++
     'debugpy', -- DAP adapter for python
+    'copilot-language-server', -- Copilot inline completions + NES (see lua/custom/plugins/copilot.lua)
   })
 
   require('mason-tool-installer').setup {
@@ -962,6 +963,18 @@ do
       --
       -- See `:help blink-cmp-config-keymap` for defining your own keymap
       preset = 'default',
+
+      -- <Tab> chain (sidekick README's blink.cmp recipe): snippet jump, then a
+      -- Copilot Next Edit Suggestion, then the Copilot inline (ghost-text)
+      -- completion, else a literal tab. Each step returns falsy when it has
+      -- nothing to do. See lua/custom/plugins/{copilot,sidekick}.lua.
+      -- stylua: ignore
+      ['<Tab>'] = {
+        'snippet_forward',
+        function() local ok, sk = pcall(require, 'sidekick') return ok and sk.nes_jump_or_apply() end,
+        function() return vim.lsp.inline_completion.get() end,
+        'fallback',
+      },
 
       -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
       --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps

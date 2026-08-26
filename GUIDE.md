@@ -117,10 +117,28 @@ committing.
 
 ### AI
 
-Two tools, deliberately separate:
+Five tools, one job each. Claude Code (`<leader>a`) stays until Max is
+cancelled; OpenCode (`<leader>o`) is the everyday agent; sidekick (`<leader>k`)
+hosts the other CLIs and Copilot's Next Edit Suggestions; Copilot ghost text is
+plain `<Tab>`; CodeCompanion (`<leader>c`) is the offline chat.
 
 | Key | Does |
 |---|---|
+| **`<Tab>`** *(insert)* | accept **Copilot** ghost text (after snippet-jump and NES) |
+| `<Tab>` *(normal)* | jump to / apply the **Next Edit Suggestion** |
+| `<M-]>` / `<M-[>` | next / previous inline suggestion |
+| `<leader>tc` | toggle Copilot completion for this buffer |
+| **`<leader>oo`** | **OpenCode** — toggle the split |
+| `<leader>oa` | ask, seeded with `@this` (`@buffer` `@diagnostics` `@quickfix` `@visible` complete) |
+| `<leader>os` | select a prompt / command |
+| `<leader>on` / `<leader>oi` / `<leader>og` | new session / interrupt / cycle agent |
+| `<leader>ou` / `<leader>od` | scroll the transcript |
+| `go{motion}` / `goo` | send a range / the line to OpenCode as `@this` |
+| **`<leader>kk`** / `<leader>ks` | **sidekick** — toggle / select a CLI |
+| `<leader>kc` / `<leader>kx` / `<leader>kg` | Cursor agent (plan mode) / Codex / Antigravity |
+| `<leader>kt` / `<leader>kf` / `<leader>kv` | send this / the file / *(visual)* the selection |
+| `<leader>kp` / `<leader>kd` | prompt library / detach (the tmux session keeps running) |
+| `<C-.>` | focus the sidekick window |
 | **`<leader>ac`** | **Claude Code** — toggle the terminal split |
 | `<leader>af` | focus the Claude split |
 | `<leader>ab` | add the current **b**uffer to Claude's context |
@@ -199,17 +217,33 @@ Reach for it when you want a fast local answer, are offline, or don't want the
 work leaving the machine. Claude for agentic multi-file work; the local model
 for questions.
 
-### Why there's no AI autocomplete
+### Autocomplete: Copilot Student, zero VRAM
 
-Deliberate. Ghost-text completion needs its own small model resident *alongside*
-whatever owns the card, and the card is already committed: Qwen3.6-35B-A3B runs
-with `--n-cpu-moe 20`, i.e. tuned to just barely fit in 16GB. Adding a FIM
-server would make a fourth contender on a GPU `llm-switch` exists to arbitrate
-between three — and the 35B has no FIM training, so it can't do the job itself.
+Ghost text comes from GitHub's `copilot-language-server` (mason) through
+Neovim's built-in `vim.lsp.inline_completion` — no copilot.lua, no cmp source
+(`lua/custom/plugins/copilot.lua`). The Student plan gives unlimited completions
+and Next Edit Suggestions; neither is expected to consume its 200 AI credits
+(check github.com/settings/billing after the first day). Sign in once with
+`:LspCopilotSignIn`. The client only attaches to code filetypes inside a git
+worktree, so `.env`, notes and commit messages never leave the machine.
 
-If it's ever wanted: a `qwen2.5-coder-1.5b` FIM server on `:8012` plus
-`minuet-ai.nvim` feeding blink.cmp, and a fourth `llm-switch` mode so it can't
-race llama-server for VRAM.
+The old idea — a local `qwen2.5-coder-1.5b` FIM server plus `minuet-ai.nvim` —
+is retired by design: the card is full (Qwen3.6-35B-A3B with `--n-cpu-moe 20`),
+and a network completion model costs nothing to host.
+
+### Which AI tool when
+
+| Situation | Reach for |
+|---|---|
+| A task card from `docs/PLAN.md` | OpenCode `<leader>oo`, agent `build` (free) |
+| Review the diff | `/review` inside OpenCode (a different model family) |
+| Explain something | `/mentor` inside OpenCode, or `<leader>cc` offline |
+| Second failure on the same card | split it (`/spec`), then `heavy` (1M context, free) |
+| Many files at once, needs a frontier model | Cursor `<leader>kc` — plan mode first (student year, dollar-metered) |
+| Architecture, this cycle only | Claude `<leader>ac` (Max, until cancelled) |
+| Offline / private code | CodeCompanion `<leader>cc`, or OpenCode with agent `local` |
+
+`~/.config/opencode/ROUTING.md` is the full contract.
 
 ---
 
@@ -333,6 +367,10 @@ Nearly always four edits in `init.lua`, all at commented extension points:
 | Formatting didn't fire | `:ConformInfo` |
 | `<leader>ac` does nothing | Are you **inside the Claude split**? It's a terminal in insert mode — keys go to Claude. `<C-\><C-n>` first. Or you paused >300 ms between keys (`timeoutlen`); type `:ClaudeCode` to be sure. Blank split for a few seconds = the mise shim resolving, be patient. |
 | Claude won't connect | `:ClaudeCodeStatus`; confirm `~/.local/bin/claude` runs |
+| No ghost text | `:LspCopilotSignIn` once. `:lua vim.print(vim.lsp.get_clients{name='copilot'})` — is the file inside a git worktree and a code filetype? `<leader>tc` toggles per buffer |
+| NES never appears | `:checkhealth sidekick` — copilot client attached? tmux/lsof/ps found? Set `nes = { enabled = false }` if the Student plan turns out not to serve it |
+| `<leader>kk` shows an old transcript | a tmux session survived: `tmux ls`, then `tmux kill-session -t <name>` (`<leader>kd` only detaches) |
+| `<leader>oo` opens a blank split | it runs the real mise binary with `--port`; `:messages`, then try `~/.local/share/mise/installs/opencode/latest/opencode --port` in a shell |
 | GDScript has no LSP | **Is Godot open?** It hosts the server. |
 | Colors didn't follow the desktop theme | `:OmarchyThemeReload` |
 | Python resolving to conda | Make a project `.venv`; check `:LspInfo` root dir |
@@ -363,9 +401,9 @@ Five a day, in dependency order. Don't skip ahead — each day builds on the las
 | 2 | `grd` `grr` `K` `<C-o>` (jump back) `<leader>q` |
 | 3 | `grn` `gra` `<leader>f` `gO` `<leader>sd` |
 | 4 | `]c` `[c` `<leader>hp` `<leader>hs` `<leader>hb` |
-| 5 | `<leader>ac` `<leader>as` `<leader>aa` `<leader>ad` `<leader>ab` |
+| 5 | `<Tab>` (ghost text) `<leader>oo` `<leader>oa` `go` `<leader>os` |
 | 6 | `<leader>b` `<F5>` `<F2>` `<F7>` `<leader>gd` |
-| 7 | `<leader>cc` `<leader>sk` `<leader>sr` `<leader>th` `:Tutor` |
+| 7 | `<leader>cc` `<leader>kc` `<leader>ac` `<leader>sk` `:Tutor` |
 
 If you only ever learn one: **`<leader>sk`**. It searches every keymap in the
 config, so you can find the rest yourself.

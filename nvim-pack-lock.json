@@ -120,6 +120,11 @@
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
       "version": "'main'"
     },
+    "opencode.nvim": {
+      "rev": "4576b372034495b8868e6cbe878e85c717998867",
+      "src": "https://github.com/nickjvandyke/opencode.nvim",
+      "version": "1.0.0 - 2.0.0"
+    },
     "plenary.nvim": {
       "rev": "74b06c6c75e4eeb3108ec01852001636d85a932b",
       "src": "https://github.com/nvim-lua/plenary.nvim"
@@ -127,6 +132,11 @@
     "retro-82.nvim": {
       "rev": "41b8c42ed0099eb43824903ef606a6b051d33505",
       "src": "https://github.com/OldJobobo/retro-82.nvim"
+    },
+    "sidekick.nvim": {
+      "rev": "53a2d3afa61e5fd2e17b270b5fa72e5493808304",
+      "src": "https://github.com/folke/sidekick.nvim",
+      "version": "2.0.0 - 3.0.0"
     },
     "telescope-fzf-native.nvim": {
       "rev": "b25b749b9db64d375d782094e2b9dce53ad53a40",

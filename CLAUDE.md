@@ -33,3 +33,6 @@ commit is a broken editor. Read `GUIDE.md` for the full mental model.
 - Local LLM for CodeCompanion is llama-server on `127.0.0.1:8080`; the model name
   is auto-discovered, never hardcoded. See `lua/custom/plugins/ai.lua` header.
 - The GPU holds one model at a time; `llm-switch` (in `~/models`) arbitrates.
+- Copilot completions use the upstream `vim.lsp.inline_completion` path
+  (`lua/custom/plugins/copilot.lua`); sidekick.nvim (`<leader>k`) and opencode.nvim
+  (`<leader>o`) are the AI CLI front-ends. `<leader>a` stays Claude until Max is cancelled.

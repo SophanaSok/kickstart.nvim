@@ -16,6 +16,9 @@ for _, mod in ipairs {
   'omarchy', -- colorscheme, synced from the desktop theme
   'lint', -- extend kickstart's nvim-lint setup
   'ai', -- claude code + codecompanion
+  'copilot', -- copilot-language-server + native inline completion (Student plan, $0, zero VRAM)
+  'sidekick', -- NES + cursor/codex/agy terminals (needs copilot loaded first)
+  'opencode', -- opencode.nvim front-end on <leader>o
   'dap', -- debug adapters kickstart doesn't ship
   'git', -- diffview
   'godot', -- godot editor-server handshake
